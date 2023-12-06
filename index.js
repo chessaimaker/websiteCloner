@@ -1,5 +1,6 @@
 const express = require("express");
 const request = require("request");
+const app = express();
 app.all("/*", (req, res) => {
   request("https://google.com" + req.url).pipe(res);
 });
