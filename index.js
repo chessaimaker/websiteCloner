@@ -2,7 +2,7 @@ const express = require("express");
 const request = require("request");
 const app = express();
 app.all("/*", (req, res) => {
-  request("https://shuttleproxy.com" + req.url).pipe(res);
+  request("http://www.staggeringbeauty.com" + req.url).pipe(res);
 });
 const PORT = 8080;
  
