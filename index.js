@@ -34,6 +34,14 @@ app.get("/clone-website/:id1", (req, res) => {
   req.session.user = atob(req.params.id1); // Set a unique identifier for the user
   res.redirect("/");
 });
+app.get("/unclone-website", (req, res) => {
+  req.session.user = "none"; // Set a unique identifier for the user
+  res.redirect("/");
+});
+app.get("/unclone-website/", (req, res) => {
+  req.session.user = "none"; // Set a unique identifier for the user
+  res.redirect("/");
+});
 app.all("/*", checkSession, (req, res) => {
   request(req.session.user + req.url, function (error, response, body) {
     // Print the error if one occurred // Print the response status code if a response was received
