@@ -1,5 +1,7 @@
 const request = require("request");
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
 const session = require("express-session");
 const app = express();
 
@@ -18,10 +20,10 @@ const checkSession = (req, res, next) => {
     next(); // Allow access if a valid session exists
   } else {
 if(req.url == "/"){
-    res.sendFile("/index.html");
+    res.sendFile(path.join(__dirname, "/static/index.html"));
 } else{
-if(fs.existsSync("static" + req.url)){
-    res.sendFile("static" + req.url);
+if(fs.existsSync(path.join(__dirname, "/static" + req.url))){
+    res.sendFile(path.join(__dirname, "/static" + req.url));
 } else{
     res.status(404).send("404 page not found");
 }
