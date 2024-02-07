@@ -45,14 +45,25 @@ app.get("/unclone-website/", (req, res) => {
   res.redirect("/");
 });
 app.all("/*", checkSession, (req, res) => {
-  request(req.session.user + req.url, function (error, response, body) {
-    // Print the error if one occurred // Print the response status code if a response was received
+  const proxyRequest = request(req.session.user + req.url);
+
+  proxyRequest.on("response", (proxyResponse) => {
+    // Copy headers from the proxyResponse to the res object
+    res.set(proxyResponse.headers);
     var url = new URL(req.session.user);
-    body = body.replaceAll(url.hostname, req.get("host"));
-    if (error) {
-      body = error;
-    }
-  }).pipe(res);
+    const spaceReplacer = new Transform({
+      transform(chunk, encoding, callback) {
+        const modifiedChunk = chunk
+          .toString()
+          .replaceAll(url.hostname, req.get("host"));
+        this.push(modifiedChunk);
+        callback();
+      },
+    });
+
+    // Pipe the modified data to the client with the original headers
+    proxyResponse.pipe(spaceReplacer).pipe(res);
+  });
 });
 // Start the server on port 3000
 const port = 3000;
