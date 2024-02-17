@@ -3,10 +3,10 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const session = require("express-session");
-const app = express();
+const { Transform } = require("stream");
 var Unblocker = require('unblocker');
 var youtube = require('unblocker/examples/youtube/youtube.js')
-
+const app = express();
 // Set up session middleware
 app.use(
   session({
@@ -51,18 +51,28 @@ app.get("/unclone-website/", (req, res) => {
   res.redirect("/");
 });
 app.all("/*", checkSession, (req, res) => {
-  request(req.protocol + '://' + req.get('host') + "/proxy/" + req.session.user.replace("://", ":/") + req.url, function (error, response, body) {
-    // Print the error if one occurred // Print the response status code if a response was received
+var theurl = req.protocol + '://' + req.get("host") + "/proxy/" + req.session.user.replace("://", ":/") + req.url;
+  console.log(theurl);
+  const proxyRequest = request(theurl);
+  proxyRequest.on("response", (proxyResponse) => {
+  // Copy headers from the proxyResponse to the res object
+  res.set(proxyResponse.headers);
     var url = new URL(req.session.user);
-    try{
-    body = body.replaceAll(url.hostname, req.get("host"));
-    if (error) {
-      body = error;
-    }
-  } catch(e){
-    body = e.message;
-  }
-  }).pipe(res);
+    const spaceReplacer = new Transform({
+      transform(chunk, encoding, callback) {
+        const modifiedChunk = chunk
+          .toString()
+          .replaceAll(url.hostname, req.get("host"))
+          .replaceAll("/proxy/https:/" + req.get("host"), "/proxy/https:/" + url.host)
+          .replaceAll("/proxy/http:/" + req.get("host"), "/proxy/http:/" + url.host);
+        this.push(modifiedChunk);
+        callback();
+      },
+    });
+
+    // Pipe the modified data to the client with the original headers
+    proxyResponse.pipe(spaceReplacer).pipe(res);
+    });
 });
 // Start the server on port 3000
 const port = 3000;
