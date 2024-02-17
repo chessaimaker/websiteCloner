@@ -3,8 +3,9 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const session = require("express-session");
-const { Transform } = require("stream");
 const app = express();
+var Unblocker = require('unblocker');
+var youtube = require('unblocker/examples/youtube/youtube.js')
 
 // Set up session middleware
 app.use(
@@ -14,7 +15,13 @@ app.use(
     saveUninitialized: true,
   }),
 );
-
+var unblocker = new Unblocker({
+  prefix: '/proxy/',
+  requestMiddleware: [
+      youtube.processRequest
+  ]
+});
+app.use(unblocker);
 // Middleware to check if the user has a valid session
 const checkSession = (req, res, next) => {
   if (req.session && req.session.user && req.session.user != "none") {
@@ -33,40 +40,32 @@ if(fs.existsSync(path.join(__dirname, "/static" + req.url))){
 };
 
 // Route that sets up a session for the first person
-app.get("/clone-website/:id1", (req, res) => {
-  req.session.user = atob(req.params.id1); // Set a unique identifier for the user
-  res.redirect("/");
-});
-app.get("/unclone-website", (req, res) => {
-  req.session.user = "none"; // Set a unique identifier for the user
-  res.redirect("/");
+app.all("/clone-website/*", (req, res) => {
+  var id1 = req.url.replace("/clone-website/", "");
+  var cloneurl = new URL(atob(id1));
+  req.session.user = cloneurl.origin; // Set a unique identifier for the user
+  res.redirect(cloneurl.href.slice((cloneurl.origin).length, cloneurl.href.length));
 });
 app.get("/unclone-website/", (req, res) => {
   req.session.user = "none"; // Set a unique identifier for the user
   res.redirect("/");
 });
 app.all("/*", checkSession, (req, res) => {
-  const proxyRequest = request(req.session.user + req.url);
-
-  proxyRequest.on("response", (proxyResponse) => {
-    // Copy headers from the proxyResponse to the res object
-    res.set(proxyResponse.headers);
+  request(req.protocol + '://' + req.get('host') + "/proxy/" + req.session.user.replace("://", ":/") + req.url, function (error, response, body) {
+    // Print the error if one occurred // Print the response status code if a response was received
     var url = new URL(req.session.user);
-    const spaceReplacer = new Transform({
-      transform(chunk, encoding, callback) {
-        const modifiedChunk = chunk
-          .toString()
-          .replaceAll(url.hostname, req.get("host"));
-        this.push(modifiedChunk);
-        callback();
-      },
-    });
-
-    // Pipe the modified data to the client with the original headers
-    proxyResponse.pipe(spaceReplacer).pipe(res);
-  });
+    try{
+    body = body.replaceAll(url.hostname, req.get("host"));
+    if (error) {
+      body = error;
+    }
+  } catch(e){
+    body = e.message;
+  }
+  }).pipe(res);
 });
-const port = 8080;
+// Start the server on port 3000
+const port = 3000;
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
